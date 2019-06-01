@@ -12,7 +12,7 @@ import java.util.Map;
 
 @Data
 @AllArgsConstructor
-@Table("people_by_first_name")
+@Table("DATA")
 public class Values {
 
     @PrimaryKey
