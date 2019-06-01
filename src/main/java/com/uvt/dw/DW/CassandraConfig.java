@@ -1,95 +1,58 @@
 package com.uvt.dw.DW;
-
-import com.mongodb.lang.Nullable;
-import org.springframework.beans.factory.annotation.Value;
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.cassandra.config.*;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.core.env.Environment;
+import org.springframework.data.cassandra.config.CassandraClusterFactoryBean;
+import org.springframework.data.cassandra.config.CassandraSessionFactoryBean;
+import org.springframework.data.cassandra.config.SchemaAction;
+import org.springframework.data.cassandra.core.convert.CassandraConverter;
+import org.springframework.data.cassandra.core.convert.MappingCassandraConverter;
+import org.springframework.data.cassandra.core.CassandraOperations;
+import org.springframework.data.cassandra.core.CassandraTemplate;
 import org.springframework.data.cassandra.core.mapping.BasicCassandraMappingContext;
 import org.springframework.data.cassandra.core.mapping.CassandraMappingContext;
 import org.springframework.data.cassandra.repository.config.EnableCassandraRepositories;
-
-import java.util.Arrays;
-import java.util.List;
-
 @Configuration
-@EnableCassandraRepositories
-public class CassandraConfig extends AbstractCassandraConfiguration {
-
-
-
-    @Override
-    public List<String> getStartupScripts() {
-//        if(script==null) {
-           String script = "create keyspace if not exists pop1 with durable_writes = true " +
-                    "and replication = {'class': 'org.apache.cassandra.locator.SimpleStrategy', 'replication_factor': '2'};";
-            System.out.println("=======================================================");
-//        }
-
-        return Arrays.asList(script);
-    }
-
-    @Value("${cassandra.contactpoints}")
-    private String contactPoints;
-
-    @Value("${cassandra.port}")
-    private int port;
-
-    @Value("${cassandra.keyspace}")
-    private String keySpace;
-
-    @Value("${cassandra.basePackages}")
-    private String basePackages;
-
-    @Value("${cassandra.username}")
-    private String username;
-
-    @Value("${cassandra.password}")
-    private String password;
-
-
-
-    @Override
-    protected String getKeyspaceName() {
-        return keySpace;
-    }
-
-    @Override
-    protected String getContactPoints() {
-        return contactPoints;
-    }
-
-    @Override
-    protected int getPort() {
-        return port;
-    }
-
-    @Override
-    public SchemaAction getSchemaAction() {
-        return SchemaAction.CREATE_IF_NOT_EXISTS;
-    }
-
-    @Override
-    public String[] getEntityBasePackages() {
-        return new String[] {basePackages};
-    }
-
-
+@PropertySource(value = { "classpath:META-INF/cassandra.properties" })
+@EnableCassandraRepositories(basePackages = { "com.gkatzioura.spring" })
+public class CassandraConfig {
+	@Autowired
+	private Environment environment;
+	@Bean
+	public CassandraClusterFactoryBean cluster() {
+		CassandraClusterFactoryBean cluster = new CassandraClusterFactoryBean();
+		cluster.setContactPoints(environment.getProperty("cassandra.contactpoints"));
+		cluster.setPort(Integer.parseInt(environment.getProperty("cassandra.port")));
+		cluster.setUsername(environment.getProperty("cassandra.username"));
+		cluster.setPassword(environment.getProperty("cassandra.password"));
+		
+		cluster.setJmxReportingEnabled(false);
+		return cluster;
+	}
     @Bean
-    public CassandraClusterFactoryBean cluster() {
-        CassandraClusterFactoryBean cluster =
-                new CassandraClusterFactoryBean();
-        cluster.setContactPoints(this.getContactPoints());
-        cluster.setPort(this.getPort());
-        cluster.setUsername(username);
-        cluster.setPassword(password);
-        return cluster;
-    }
-
-    @Bean
-    public CassandraMappingContext cassandraMapping()
-            throws ClassNotFoundException {
+    public CassandraMappingContext mappingContext() {
         return new BasicCassandraMappingContext();
     }
 
+    @Bean
+    public CassandraConverter converter() {
+        return new MappingCassandraConverter(mappingContext());
+    }
+	@Bean
+	public CassandraSessionFactoryBean session() throws Exception {
+		CassandraSessionFactoryBean session = new CassandraSessionFactoryBean();
+		session.setCluster(cluster().getObject());
+		session.setKeyspaceName(environment.getProperty("cassandra.keyspace"));
+        session.setConverter(converter());
+		session.setSchemaAction(SchemaAction.NONE);
+		return session;
+	}
+	@Bean
+	public CassandraOperations cassandraTemplate() throws Exception {
+		return new CassandraTemplate(session().getObject());
+	}
 }
