@@ -14,7 +14,10 @@ repositories {
 }
 
 dependencies {
+
+	compileOnly("org.projectlombok:lombok:1.16.10")
 	implementation 'org.springframework.boot:spring-boot-starter-data-cassandra'
 	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	implementation 'com.codahale.metrics:metrics-core:3.0.2'
 }
